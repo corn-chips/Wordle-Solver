@@ -143,6 +143,7 @@
     <ClCompile Include="cppsolver.cpp" />
     <ClCompile Include="threadpool.cpp" />
     <ClCompile Include="wordfilter.cpp" />
+    <ClCompile Include="wordfilter_intrinsic_avx2.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="allwords.hpp" />

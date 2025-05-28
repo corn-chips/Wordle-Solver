@@ -172,7 +172,6 @@ int WordFilter::filterWordsCount(const std::vector<std::string>& wordlist)
                 }
 
                 //Check if the letter is present in the word
-                //if (word.find(misplaced[j][k]) == std::string::npos)
                 if (std::memchr(word.c_str(), misplaced[j][k], word.size()) == NULL)
                 {
                     possibleWord = false;
@@ -185,16 +184,15 @@ int WordFilter::filterWordsCount(const std::vector<std::string>& wordlist)
         if (!possibleWord) continue;
 
         //Check if the word contains any wrong letters
-        //for (int j = 0; j < this->wrong.size(); j++)
-        //{
-        //    //if (word.find(this->wrong[j]) != std::string::npos)
-        //    //if(std::memchr(word.c_str(), this->wrong[j], word.size()) != NULL)
-        //    {
-        //        possibleWord = false;
-        //        break;
-        //    }
-        //}
-        if (!find_no_common_chars_sse42(word.c_str(), word.size(), this->wrong.data(), this->wrong.size())) continue;
+        for (int j = 0; j < this->wrong.size(); j++)
+        {
+            if(std::memchr(word.c_str(), this->wrong[j], word.size()) != NULL)
+            {
+                possibleWord = false;
+                break;
+            }
+        }
+        
 
         count++;
     }
@@ -235,41 +233,10 @@ int WordFilter::optimized_filterWordsCount(const unsigned char* wordlist, size_t
     {
         const unsigned char* word = &(wordlist[i * 5]);
 
-        //make letter counts
-        /*for (int i = 0; i < 26; i++) {
-            scratchmem[i] = 0;
-        }
-        for (int i = 0; i < 5; i++) {
-            scratchmem[word[i] - 97] += 1;
-        }*/
-
         //Check if all the correct letters are present
         if (!masked_greenletter_compare(this->correct.data(), word)) continue;
-
+        
         //Check if all the misplaced letters are present
-        //for (int j = 0; j < this->misplaced.size(); j++)
-        //{
-        //    for (int k = 0; k < this->misplaced[j].size(); k++)
-        //    {
-        //        //Check that the letter is not in the same location
-        //        if (this->misplaced[j][k] == word[j])
-        //        {
-        //            possibleWord = false;
-        //            break;
-        //        }
-        //
-        //        //Check if the letter is present in the word
-        //        //if (word.find(misplaced[j][k]) == std::string::npos)
-        //        //if (std::memchr(word, misplaced[j][k], 5) == NULL)
-        //        if(scratchmem[this->misplaced[j][k] - 97] == 0)
-        //        {
-        //            possibleWord = false;
-        //            break;
-        //        }
-        //    }
-        // if (!possibleWord) break;
-
-
         if ((misplaceLettersLists_size != 0) && !check_misplaced_letters(word, misplaceLettersLists, misplaceLettersLists_sizes)) continue;
 
         if ((wrongletterlistsize > 16 ?
@@ -279,8 +246,11 @@ int WordFilter::optimized_filterWordsCount(const unsigned char* wordlist, size_t
 
         count++;
     }
+
     delete[] wrongletterlist;
-    delete[] misplaceLettersLists;
+
+    if(misplaceLettersLists != nullptr)
+        delete[] misplaceLettersLists;
 
     return count;
 }
