@@ -7,6 +7,7 @@ using System.Threading;
 using Newtonsoft.Json.Linq;
 using System.Collections.Concurrent;
 using System.Numerics;
+using System.Diagnostics;
 
 namespace Wordle_Solver
 {
@@ -20,9 +21,9 @@ namespace Wordle_Solver
             json = File.ReadAllText("ValidWords.txt");
             string[] validWords = JsonConvert.DeserializeObject<string[]>(json);
 
-            char[] correct = [' ', 'o', 'r', ' ', 'e'];
-            char[][] misplaced = [[], [], [], ['r'], []];
-            string wrongString = "shaktilfg";
+            char[] correct = [' ', ' ', ' ', ' ', ' '];
+            char[][] misplaced = [[], [], [], [], []];
+            string wrongString = "";
 
             /*
             char[] correct = [' ', ' ', ' ', ' ', ' '];
@@ -43,20 +44,24 @@ namespace Wordle_Solver
             Console.WriteLine(filteredWords.Count());
             Console.WriteLine();
 
+            Stopwatch s = new Stopwatch();
+            s.Start();
+
             //Create a dictionary
             ConcurrentDictionary<string, float> keyValuePairs = new ConcurrentDictionary<string, float>();
-            Task<float>[] outputs = new Task<float>[words.Length];
+            Task<float>[] outputs = new Task<float>[validWords.Length];
 
             //Loop over every possible guess
-            for (int i = 0; i < words.Count(); i++)
+            for (int i = 0; i < validWords.Count(); i++)
             {
-                outputs[i] = countAvgRemaining(words[i], filteredWordsArray);
+                outputs[i] = countAvgRemaining(validWords[i], filteredWordsArray);
             }
 
-            for (int i = 0; i < words.Count(); i++)
+            for (int i = 0; i < validWords.Count(); i++)
             {
-                keyValuePairs[words[i]] = outputs[i].Result;
+                keyValuePairs[validWords[i]] = outputs[i].Result;
             }
+            s.Stop();
 
             //Sort dictonary by key first (alphabetical order), then by value
             var sortedDict = keyValuePairs.OrderBy(x => x.Key).ToDictionary(x => x.Key, x => x.Value).ToArray();
@@ -66,6 +71,8 @@ namespace Wordle_Solver
             {
                 Console.WriteLine(sortedDict[i].Key + "\t" + sortedDict[i].Value);
             }
+
+            Console.WriteLine("Elapsed Time: " + s.ElapsedMilliseconds + " ms");
         }
 
         public static List<string> filterWords(WordFilter filter, string[] wordList)
