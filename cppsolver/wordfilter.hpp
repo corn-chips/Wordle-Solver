@@ -46,6 +46,35 @@ public:
         SIMD_FilterData() = default;
     };
 
+    struct SIMD_FilterData_AVX512 {
+        std::array<__m512i, 5> zmm_correct_chars;
+        std::array<__mmask64, 5> k_correct_is_space; // Stores k-mask directly
+
+        std::array<std::vector<__m512i>, 5> zmm_misplaced_chars_bcast;
+        std::vector<__m512i> zmm_wrong_chars_bcast;
+        // No need for zmm_all_ones if we use k-mask operations mainly, but good for blend/xor
+
+        SIMD_FilterData_AVX512() = default;
+
+        SIMD_FilterData_AVX512(const WordFilter& wf) {
+            __m512i space_char_bcast = _mm512_set1_epi8(' ');
+            for (int j = 0; j < 5; ++j) {
+                zmm_correct_chars[j] = _mm512_set1_epi8(wf.correct[j]);
+                k_correct_is_space[j] = _mm512_cmpeq_epi8_mask(zmm_correct_chars[j], space_char_bcast);
+            }
+
+            for (int j = 0; j < 5; ++j) {
+                for (char m_char : wf.misplaced[j]) {
+                    zmm_misplaced_chars_bcast[j].push_back(_mm512_set1_epi8(m_char));
+                }
+            }
+
+            for (char w_char : wf.wrong) {
+                zmm_wrong_chars_bcast.push_back(_mm512_set1_epi8(w_char));
+            }
+        }
+    };
+
     std::array<char, 5> correct;
     std::array<std::vector<char>, 5> misplaced;
     std::vector<char> wrong;
@@ -75,6 +104,13 @@ public:
     bool simd_data_initialized = false;
     SIMD_FilterData filter_simd_data;
 
+    SIMD_FilterData_AVX512 filter_simd_data_avx512; // Member instance
+    bool simd_data_avx512_initialized = false;
+
     int hyperpacked_optimized_filterWordsCount(const unsigned char* hyperpacked_wordlist, size_t words);
+    int hyperpacked_optimized_filterWordsCount_AVX512(
+        const unsigned char* hyperpacked_wordlist,
+        size_t words
+    );
 };
 

@@ -9,9 +9,9 @@
 
 struct JobRecipe {
     void* Parameter;
-    void (*callback)(void* param, unsigned char* threadlocalstorage);
+    void (*callback)(void* param, void* threadlocalstorage);
 
-    JobRecipe(void* param, void(*cb)(void*, unsigned char*)) : Parameter{ param }, callback{ cb } {}
+    JobRecipe(void* param, void(*cb)(void*, void*)) : Parameter{ param }, callback{ cb } {}
     JobRecipe() = default;
 };
 
@@ -28,7 +28,7 @@ public:
     void WaitCompletion();
     bool isBusy();
 
-    void allocateThreadLocalStorage(const void* mem, size_t memsize); //copies across all threads
+    void allocateThreadLocalStorage(const void* mem, size_t size, size_t alloc_alignment); //copies across all threads
 private:
     void ThreadLoop(int threadIndex);
 
@@ -37,7 +37,7 @@ private:
     std::atomic<int> jobsAssigned;
 
     std::vector<std::thread> pool;
-    std::vector<std::vector<unsigned char>> threadLocalStorage;
+    std::vector<void*> threadLocalStorage;
 
     std::condition_variable dispatch;
 

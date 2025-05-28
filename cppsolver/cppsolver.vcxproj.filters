@@ -27,6 +27,9 @@
     <ClCompile Include="wordfilter_intrinsic_avx2.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="wordfilter_intrinsic_avx512.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="allwords.hpp">

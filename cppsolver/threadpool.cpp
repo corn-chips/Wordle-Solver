@@ -82,17 +82,16 @@ void ThreadPool::ThreadLoop(int threadIndex)
             jobs.pop();
         }
 
-        task.callback(task.Parameter, this->threadLocalStorage[threadIndex].data());
+        task.callback(task.Parameter, this->threadLocalStorage[threadIndex]);
         jobsCompleted++;
 
     }
 }
 
-void ThreadPool::allocateThreadLocalStorage(const void* mem, size_t size)
+void ThreadPool::allocateThreadLocalStorage(const void* mem, size_t size, size_t alloc_alignment)
 {
     for (int i = 0; i < this->pool.size(); i++) {
-        this->threadLocalStorage[i].reserve(size);
-        this->threadLocalStorage[i].resize(size);
-        std::memcpy(this->threadLocalStorage[i].data(), mem, size);
+        this->threadLocalStorage[i] = _aligned_malloc(size, alloc_alignment);
+        std::memcpy(this->threadLocalStorage[i], mem, size);
     }
 }

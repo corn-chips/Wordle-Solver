@@ -21,7 +21,7 @@ int WordFilter::hyperpacked_optimized_filterWordsCount(
 
         // 1. Load data for the current batch (MUCH FASTER NOW)
         for (int j = 0; j < 5; ++j) {
-            ymm_word_char_cols[j] = _mm256_loadu_si256(
+            ymm_word_char_cols[j] = _mm256_load_si256(
                 reinterpret_cast<const __m256i*>(&hyperpacked_wordlist[soa_batch_base_offset + j * BATCH_SIZE])
             );
         }

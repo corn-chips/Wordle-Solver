@@ -144,6 +144,7 @@
     <ClCompile Include="threadpool.cpp" />
     <ClCompile Include="wordfilter.cpp" />
     <ClCompile Include="wordfilter_intrinsic_avx2.cpp" />
+    <ClCompile Include="wordfilter_intrinsic_avx512.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="allwords.hpp" />

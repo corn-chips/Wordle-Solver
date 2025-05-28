@@ -85,27 +85,27 @@ struct CountAvgRemainingJobParams {
 
 
 
-void countAvgRemaining_pooljob(void* param, unsigned char* threadlocalstorage) {
+void countAvgRemaining_pooljob(void* param, void* threadlocalstorage) {
     CountAvgRemainingJobParams& params = *((CountAvgRemainingJobParams*)param);
 
     float sum = 0.0f;
 
     for (int i = 0; i < params.wordsInList; i++) {
-        WordFilter tempFilter{ (char*) & (threadlocalstorage[i * 5]), params.word };
-        sum += (float)tempFilter.optimized_filterWordsCount(threadlocalstorage, params.wordsInList, nullptr);
+        WordFilter tempFilter{ (char*)&(((unsigned char*)threadlocalstorage)[i * 5]), params.word };
+        sum += (float)tempFilter.optimized_filterWordsCount(((unsigned char*)threadlocalstorage), params.wordsInList, nullptr);
     }
 
     *params.outputSum = sum / (float)params.wordsInList;
 }
 
-void hyperavx_countAvgRemaining_pooljob(void* param, unsigned char* threadlocalstorage) {
+void hyperavx_countAvgRemaining_pooljob(void* param, void* threadlocalstorage) {
     CountAvgRemainingJobParams& params = *((CountAvgRemainingJobParams*)param);
 
     float sum = 0.0f;
 
     for (int i = 0; i < params.wordsInList; i++) {
-        WordFilter tempFilter{ (char*)&(threadlocalstorage[i * 5]), params.word };
-        sum += (float)tempFilter.hyperpacked_optimized_filterWordsCount(threadlocalstorage, params.wordsInList);
+        WordFilter tempFilter{ (char*)&(((unsigned char*)threadlocalstorage)[i * 5]), params.word };
+        sum += (float)tempFilter.hyperpacked_optimized_filterWordsCount(((unsigned char*)threadlocalstorage), params.wordsInList);
     }
 
     *params.outputSum = sum / (float)params.wordsInList;
@@ -123,6 +123,8 @@ int main()
     // TODO: filters do not work when hyperavx mode is on
     // process words in simd parallel
     constexpr bool hyperavx_mode = true;
+    constexpr bool avx512_mode = false;
+    constexpr int packwidth = avx512_mode ? 64 : 32;
 
     std::array<char, 5> correct = { ' ', ' ', ' ', ' ', ' ' };
     std::array<std::vector<char>, 5> misplaced = {{
@@ -161,7 +163,7 @@ int main()
     
 
     //set search words list
-    const std::vector<std::string>& selectedSearchWords = allWords;
+    const std::vector<std::string>& selectedSearchWords = validWords;
 
     //allocate task list
     std::vector<CountAvgRemainingJobParams> jobParams;
@@ -193,23 +195,23 @@ int main()
         // .
         // [wNc5], [wNc2], [wNc5], ... [wNc5]
 
-        size_t optimizedFilteredList_bytes = ((filteredWords.size() / 32) + 1) * 32 * 5;
+        size_t optimizedFilteredList_bytes = ((filteredWords.size() / packwidth) + 1) * packwidth * 5;
         char* optimizedFilteredList = new char[optimizedFilteredList_bytes];
 
         //zero the buffer
         std::memset(optimizedFilteredList, 0, optimizedFilteredList_bytes);
 
-        for (int i = 0; i < filteredWords.size(); i += 32) {
+        for (int i = 0; i < filteredWords.size(); i += packwidth) {
             for (int j = 0; j < 5; j++) {
-                for (int k = 0; k < 32; k++) {
+                for (int k = 0; k < packwidth; k++) {
                     if ( (i + k) < filteredWords.size() )
-                        optimizedFilteredList[(i * 5) + (j * 32) + (k)] = filteredWords[i+k].c_str()[j];
+                        optimizedFilteredList[(i * 5) + (j * packwidth) + (k)] = filteredWords[i+k].c_str()[j];
                 }
             }
         }
         std::cout << "built packed filter list" << std::endl;
         
-        pool.allocateThreadLocalStorage(optimizedFilteredList, optimizedFilteredList_bytes);
+        pool.allocateThreadLocalStorage(optimizedFilteredList, optimizedFilteredList_bytes, packwidth);
         //can deallocate the packed list now
         delete[] optimizedFilteredList;
 
@@ -227,7 +229,8 @@ int main()
             std::memcpy(&(optimizedFilteredList[i * 5]), filteredWords[i].c_str(), 5);
         }
 
-        pool.allocateThreadLocalStorage(optimizedFilteredList, optimizedFilteredList_bytes);
+        //align to cache line?
+        pool.allocateThreadLocalStorage(optimizedFilteredList, optimizedFilteredList_bytes, 64); // 64 for a placeholder
         delete[] optimizedFilteredList;
 
         //build jobs
