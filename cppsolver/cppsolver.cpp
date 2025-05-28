@@ -83,8 +83,6 @@ struct CountAvgRemainingJobParams {
     }
 };
 
-
-
 void countAvgRemaining_pooljob(void* param, void* threadlocalstorage) {
     CountAvgRemainingJobParams& params = *((CountAvgRemainingJobParams*)param);
 
@@ -111,6 +109,19 @@ void hyperavx_countAvgRemaining_pooljob(void* param, void* threadlocalstorage) {
     *params.outputSum = sum / (float)params.wordsInList;
 }
 
+void hyperavx512_countAvgRemaining_pooljob(void* param, void* threadlocalstorage) {
+    CountAvgRemainingJobParams& params = *((CountAvgRemainingJobParams*)param);
+
+    float sum = 0.0f;
+
+    for (int i = 0; i < params.wordsInList; i++) {
+        WordFilter tempFilter{ (char*)&(((unsigned char*)threadlocalstorage)[i * 5]), params.word };
+        sum += (float)tempFilter.hyperpacked_optimized_filterWordsCount_AVX512(((unsigned char*)threadlocalstorage), params.wordsInList);
+    }
+
+    *params.outputSum = sum / (float)params.wordsInList;
+}
+
 int main()
 {
     // 
@@ -123,7 +134,7 @@ int main()
     // TODO: filters do not work when hyperavx mode is on
     // process words in simd parallel
     constexpr bool hyperavx_mode = true;
-    constexpr bool avx512_mode = false;
+    constexpr bool avx512_mode = true;
     constexpr int packwidth = avx512_mode ? 64 : 32;
 
     std::array<char, 5> correct = { ' ', ' ', ' ', ' ', ' ' };
@@ -163,7 +174,7 @@ int main()
     
 
     //set search words list
-    const std::vector<std::string>& selectedSearchWords = validWords;
+    const std::vector<std::string>& selectedSearchWords = allWords;
 
     //allocate task list
     std::vector<CountAvgRemainingJobParams> jobParams;
@@ -218,7 +229,10 @@ int main()
         //build jobs
         for (int i = 0; i < selectedSearchWords.size(); i++) {
             jobParams[i] = CountAvgRemainingJobParams(selectedSearchWords[i].c_str(), &(sumsOutputs.data()[i]), filteredWords.size());
-            sumJobs[i] = JobRecipe(&(jobParams.data()[i]), &hyperavx_countAvgRemaining_pooljob);
+            if (avx512_mode)
+                sumJobs[i] = JobRecipe(&(jobParams.data()[i]), &hyperavx512_countAvgRemaining_pooljob);
+            else
+                sumJobs[i] = JobRecipe(&(jobParams.data()[i]), &hyperavx_countAvgRemaining_pooljob);
         }
     }
     else {
